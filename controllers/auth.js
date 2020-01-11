@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
 
@@ -34,4 +35,49 @@ exports.signup = (req, res, next) => {
             err.message = 'Error occured while creating a new User';
             next(err);
         })
+};
+
+exports.login = (req, res, next) => {
+    const email = req.body.email;
+    const password = req.body.password;
+    let foundUser;
+
+    User.findOne({ email })
+        .then(user => {
+            if (!user) {
+                const error = new Error('User not found')
+                error.statusCode = 404;
+                throw error;
+            }
+            foundUser = user;
+            return bcrypt.compare(password, user.password)
+        })
+        .then(isEqual => {
+            if (!isEqual) {
+                const error = new Error('Wrong password')
+                error.statusCode = 401;
+                throw error;
+            }
+
+            const token = jwt.sign(
+                {
+                    email: foundUser.email,
+                    userId: foundUser._id.toString(),
+                },
+                'Better done then perfect',
+                {
+                    expiresIn: '1h'
+                }
+            );
+            res.status(200).json({ token, userId: foundUser._id.toString() })
+            // Valid user
+        })
+        .catch(err => {
+            if (!err.statusCode) {
+                err.statusCode = 500;
+            }
+            err.message = 'Error occured while login';
+            next(err);
+        })
+
 }
