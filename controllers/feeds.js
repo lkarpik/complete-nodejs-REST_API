@@ -7,7 +7,7 @@ const Post = require('../models/post');
 
 exports.getPosts = (req, res, next) => {
     const currentPage = parseInt(req.query.page) || 1;
-    const itemsPerPage = 2;
+    const itemsPerPage = 3;
     let totalItems;
     Post.find()
         .countDocuments()

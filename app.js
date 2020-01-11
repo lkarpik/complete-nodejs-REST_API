@@ -50,15 +50,18 @@ app.use(upload);
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
 const feedRoutes = require('./routes/feeds');
+const authRoutes = require('./routes/auth');
 
 app.use('/feed', feedRoutes);
+app.use('/auth', authRoutes);
 
 app.use((error, req, res, next) => {
     const status = error.statusCode || 500;
     const message = error.message;
+    const data = error.data;
     console.log(error);
     console.log(message);
-    res.status(status).json({ message });
+    res.status(status).json({ message, data });
 })
 
 const MONGO_URI = `mongodb+srv://lkarpik:At0fLuVKgPddwPlr@sandbox-0erkh.mongodb.net/nodejsCompleteAPI`
