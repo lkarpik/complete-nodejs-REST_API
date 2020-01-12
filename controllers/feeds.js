@@ -5,35 +5,30 @@ const {
 } = require('express-validator');
 const Post = require('../models/post');
 const User = require('../models/user');
+const io = require('../socket');
 
-exports.getPosts = (req, res, next) => {
+exports.getPosts = async (req, res, next) => {
     const currentPage = parseInt(req.query.page) || 1;
     const itemsPerPage = 3;
-    let totalItems;
-    Post.find()
-        .countDocuments()
-        .then(count => {
-            totalItems = count;
-            return Post.find()
-                .populate('creator', ('name email'))
-                .skip((currentPage - 1) * itemsPerPage)
-                .limit(itemsPerPage);
-        })
-        .then(posts => {
-            console.log(posts);
-            res.status(200).json({
-                message: 'Fetched posts successfully',
-                posts,
-                totalItems
-            })
-        })
-        .catch(err => {
-            if (!err.statusCode) {
-                err.statusCode = 500;
-            }
-            err.message = 'Error occured while fetching posts.';
-            next(err);
+    try {
+        const count = await Post.find().countDocuments();
+        const posts = await Post.find()
+            .populate('creator', ('name email'))
+            .skip((currentPage - 1) * itemsPerPage)
+            .sort({ createdAt: -1 })
+            .limit(itemsPerPage);
+        res.status(200).json({
+            message: 'Fetched posts successfully',
+            posts,
+            count
         });
+    } catch (err) {
+        if (!err.statusCode) {
+            err.statusCode = 500;
+        }
+        err.message = 'Error occured while fetching posts.';
+        next(err);
+    }
 }
 
 exports.createPost = (req, res, next) => {
@@ -70,6 +65,12 @@ exports.createPost = (req, res, next) => {
             return user.save()
         })
         .then(result => {
+
+            io.getIO().emit('posts',
+                {
+                    action: 'create',
+                    post: { ...post._doc, creator: { _id: creator._id, name: creator.name } }
+                });
 
             res.status(201).json({
                 post,
@@ -125,13 +126,14 @@ exports.uptadePost = (req, res, next) => {
     const postId = req.params.postId;
 
     Post.findById(postId)
+        .populate('creator', ('name'))
         .then(post => {
             if (!post) {
                 const error = new Error('Couldn not find post');
                 error.statusCode = 404;
                 throw error;
             }
-            if (post.creator.toString() !== req.userId) {
+            if (post.creator._id.toString() !== req.userId) {
                 const error = new Error('Not authorized');
                 error.statusCode = 404;
                 throw error;
@@ -146,6 +148,9 @@ exports.uptadePost = (req, res, next) => {
             }
             return post.save();
         }).then(post => {
+
+            io.getIO().emit('posts', { action: 'update', post });
+
             res.status(200).json({
                 message: 'Content updated!',
                 post
@@ -185,6 +190,7 @@ exports.deletePost = (req, res, next) => {
             return user.save();
         })
         .then(result => {
+            io.getIO().emit('posts', { action: 'delete', postId });
             res.status(200).json({ message: 'Post deleted' });
         })
         .catch(err => {
