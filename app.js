@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const graphQlHttp = require('express-graphql');
 
 const app = express();
 
@@ -49,11 +50,20 @@ app.use((req, res, next) => {
 app.use(upload);
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-const feedRoutes = require('./routes/feeds');
-const authRoutes = require('./routes/auth');
-
-app.use('/feed', feedRoutes);
-app.use('/auth', authRoutes);
+app.use('/graphql', graphQlHttp({
+    schema: require('./graphql/shema'),
+    rootValue: require('./graphql/resolvers'),
+    graphiql: true,
+    customFormatErrorFn(err) {
+        if (!err.originalError) {
+            return err;
+        }
+        const data = err.originalError.data;
+        const message = err.originalError.message || 'Error occured';
+        const status = err.originalError.status;
+        return { message, status, data };
+    }
+}));
 
 app.use((error, req, res, next) => {
     const status = error.statusCode || 500;
@@ -74,12 +84,7 @@ mongoose
     .then(result => {
         console.log('Conected do db!')
 
-        const server = app.listen(8080);
-        const io = require('./socket').init(server);
+        app.listen(8080);
 
-        io.on('connection', socket => {
-            console.log('Client connected!');
-
-        });
     })
     .catch(err => console.log(err))
