@@ -75,5 +75,10 @@ module.exports = {
             token,
             userId
         };
+    },
+
+    createPost: async ({ title, content, imageUrl }, req) => {
+
+
     }
 };
