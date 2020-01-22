@@ -3,6 +3,7 @@ const validator = require('validator');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
+const Post = require('../models/post');
 
 
 
@@ -77,8 +78,53 @@ module.exports = {
         };
     },
 
-    createPost: async ({ title, content, imageUrl }, req) => {
+    createPost: async (args, req) => {
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
 
+        const { title, content, imageUrl } = args.postInput;
+        const errors = [];
+        console.log("Here");
+        console.log(args);
+        if (validator.isEmpty(title) || !validator.isLength(title, { min: 5, max: 100 })) {
+            errors.push({ message: 'Title must be at least 5 characters long' });
+        }
+        if (validator.isEmpty(title) || !validator.isLength(content, { min: 5, max: 100 })) {
+            errors.push({ message: 'Content must be at least 5 characters long' });
+        }
+
+        if (errors.length > 0) {
+            const error = new Error('Post validation error')
+            error.data = errors;
+            error.status(422);
+            console.log(error);
+            throw error;
+        }
+        const user = await User.findById(req.userId);
+        if (!user) {
+            const error = new Error('No user found')
+            error.status(401);
+            throw error;
+        }
+        const post = new Post({
+            title,
+            content,
+            imageUrl,
+            creator: userId
+        });
+
+        createdPost = await post.save();
+        user.posts.push(createPost);
+
+        return {
+            ...createdPost._doc,
+            _id: createdPost._id.toString(),
+            createdAt: createdPost.createdAt.toISOString(),
+            updatedAt: createdPost.updatedAt.toISOString()
+        }
 
     }
 };

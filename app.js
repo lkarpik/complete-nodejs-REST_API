@@ -3,6 +3,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const graphQlHttp = require('express-graphql');
+const auth = require('./middleware/auth');
 
 const app = express();
 
@@ -53,17 +54,20 @@ app.use((req, res, next) => {
 app.use(upload);
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
+app.use(auth);
+
 app.use('/graphql', graphQlHttp({
     schema: require('./graphql/shema'),
     rootValue: require('./graphql/resolvers'),
     graphiql: true,
     customFormatErrorFn(err) {
         if (!err.originalError) {
+            console.log(err);
             return err;
         }
         const data = err.originalError.data;
         const message = err.originalError.message || 'Error occured';
-        const status = err.originalError.status;
+        const status = err.originalError.status || 500;
         return { message, status, data };
     }
 }));
