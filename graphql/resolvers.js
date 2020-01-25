@@ -113,11 +113,12 @@ module.exports = {
             title,
             content,
             imageUrl,
-            creator: userId
+            creator: user
         });
 
-        createdPost = await post.save();
-        user.posts.push(createPost);
+        const createdPost = await post.save();
+        user.posts.push(createdPost);
+        await user.save();
 
         return {
             ...createdPost._doc,
