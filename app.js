@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+
 const mongoose = require('mongoose');
 const multer = require('multer');
 const graphQlHttp = require('express-graphql');
@@ -53,8 +55,24 @@ app.use((req, res, next) => {
 
 app.use(upload);
 app.use('/images', express.static(path.join(__dirname, 'images')));
-
 app.use(auth);
+
+app.put('/post-image', (req, res, err) => {
+    if (!req.isAuth) {
+        throw new Error('Not authenticated');
+    }
+    if (!req.file) {
+        return res.status(200).json({ message: 'No file attached.' });
+    }
+    if (req.body.odlPath) {
+        clearImage(req.body.odlPath);
+    }
+
+    const filePath = path.normalize(req.file.path).replace(/\\/g, '/');
+
+    return res.status(201).json({ message: "File stored", filePath })
+
+});
 
 app.use('/graphql', graphQlHttp({
     schema: require('./graphql/shema'),
@@ -90,8 +108,11 @@ mongoose
     })
     .then(result => {
         console.log('Conected do db!')
-
         app.listen(8080);
-
     })
-    .catch(err => console.log(err))
+    .catch(err => console.log(err));
+
+const clearImage = filePath => {
+    const imgPath = path.join(__dirname, '..', filePath);
+    fs.unlink(imgPath, err => console.log(err));
+}

@@ -87,8 +87,7 @@ module.exports = {
 
         const { title, content, imageUrl } = args.postInput;
         const errors = [];
-        console.log("Here");
-        console.log(args);
+
         if (validator.isEmpty(title) || !validator.isLength(title, { min: 5, max: 100 })) {
             errors.push({ message: 'Title must be at least 5 characters long' });
         }
@@ -118,6 +117,7 @@ module.exports = {
 
         const createdPost = await post.save();
         user.posts.push(createdPost);
+
         await user.save();
 
         return {
@@ -127,5 +127,62 @@ module.exports = {
             updatedAt: createdPost.updatedAt.toISOString()
         }
 
+    },
+
+    posts: async ({ page }, req) => {
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
+
+        if (!page) {
+            page = 1;
+        }
+
+        const perPage = 3;
+
+        const totalPosts = await Post.find().countDocuments();
+        const posts = await Post.find()
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * perPage)
+            .limit(perPage)
+            .populate('creator', '-password')
+        const returnedPosts = posts.map(post => {
+            return {
+                ...post._doc,
+                _id: post._id.toString(),
+                createdAt: post.createdAt.toISOString(),
+                updatedAt: post.updatedAt.toISOString()
+            }
+        })
+
+        return {
+            posts: returnedPosts, totalPosts
+        }
+    },
+
+    post: async ({ id }, req) => {
+        // if (!req.isAuth) {
+        //     const error = new Error('Not authenticated')
+        //     error.status = 401;
+        //     throw error;
+        // }
+        const post = await (await Post.findById(id).populate('creator', '-password'));
+        if (!post) {
+            const error = new Error('No post found.')
+            error.code = 404;
+            throw error;
+        }
+        // post.createdAt = post.createdAt.toLocaleString();
+        post._id = post._id.toString();
+        post.createdAt = post.createdAt.toISOString();
+
+        return {
+            ...post._doc,
+            createdAt: post.createdAt.toISOString(),
+            updatedAt: post.updatedAt.toISOString(),
+            _id: post._id.toString()
+        }
     }
 };
