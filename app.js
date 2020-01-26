@@ -64,8 +64,9 @@ app.put('/post-image', (req, res, err) => {
     if (!req.file) {
         return res.status(200).json({ message: 'No file attached.' });
     }
-    if (req.body.odlPath) {
-        clearImage(req.body.odlPath);
+    console.log(req.body);
+    if (req.body.oldPath) {
+        clearImage(req.body.oldPath);
     }
 
     const filePath = path.normalize(req.file.path).replace(/\\/g, '/');
@@ -113,6 +114,6 @@ mongoose
     .catch(err => console.log(err));
 
 const clearImage = filePath => {
-    const imgPath = path.join(__dirname, '..', filePath);
+    const imgPath = path.join(__dirname, filePath);
     fs.unlink(imgPath, err => console.log(err));
 }

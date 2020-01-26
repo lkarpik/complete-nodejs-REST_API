@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 const Post = require('../models/post');
 
-
+const clearImage = require('../util/fileHelper')
 
 module.exports = {
     createUser: async (args, req) => {
@@ -163,15 +163,15 @@ module.exports = {
     },
 
     post: async ({ id }, req) => {
-        // if (!req.isAuth) {
-        //     const error = new Error('Not authenticated')
-        //     error.status = 401;
-        //     throw error;
-        // }
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
         const post = await (await Post.findById(id).populate('creator', '-password'));
         if (!post) {
             const error = new Error('No post found.')
-            error.code = 404;
+            error.status = 404;
             throw error;
         }
         // post.createdAt = post.createdAt.toLocaleString();
@@ -184,5 +184,127 @@ module.exports = {
             updatedAt: post.updatedAt.toISOString(),
             _id: post._id.toString()
         }
+    },
+
+    updatePost: async ({ id, postInput }, req) => {
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
+
+        const { title, content, imageUrl } = postInput;
+        const post = await Post.findById(id).populate('creator', '-password');
+
+        if (!post) {
+            const error = new Error('No post found.')
+            error.status = 404;
+            throw error;
+        }
+        if (post.creator._id.toString() !== req.userId) {
+            const error = new Error('Not authorized');
+            error.status = 403;
+            throw error;
+        }
+        const errors = [];
+        if (validator.isEmpty(title) || !validator.isLength(title, { min: 5, max: 100 })) {
+            errors.push({ message: 'Title must be at least 5 characters long' });
+        }
+        if (validator.isEmpty(content) || !validator.isLength(content, { min: 5, max: 100 })) {
+            errors.push({ message: 'Content must be at least 5 characters long' });
+        }
+
+        if (errors.length > 0) {
+            const error = new Error('Post validation error')
+            error.data = errors;
+            error.status(422);
+            console.log(error);
+            throw error;
+        }
+        post.title = title;
+        post.content = content;
+
+        if (typeof imageUrl !== 'undefined') {
+            post.imageUrl = imageUrl;
+        }
+        const updatedPost = await post.save()
+        return {
+            ...updatedPost._doc,
+            _id: updatedPost._id.toString(),
+            createdAt: updatedPost.createdAt.toISOString(),
+            updatedAt: updatedPost.updatedAt.toISOString()
+        }
+    },
+    deletePost: async ({ id }, req) => {
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
+
+        const post = await Post.findById(id);
+
+        if (!post) {
+            const error = new Error('No post found.')
+            error.status = 404;
+            throw error;
+        }
+
+        if (post.creator.toString() !== req.userId) {
+            const error = new Error('Not authorized');
+            error.status = 403;
+            throw error;
+        }
+
+        clearImage(post.imageUrl);
+
+        await post.remove();
+
+        const user = await User.findById(req.userId);
+        user.posts.pull(id);
+        await user.save();
+
+        return true;
+
+    },
+    user: async (args, req) => {
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
+
+        const user = await User.findById(req.userId);
+        if (!user) {
+            const error = new Error('No user found.')
+            error.status = 404;
+            throw error;
+        }
+
+        return { ...user._doc, _id: user._id.toString() };
+
+    },
+
+    updateStatus: async ({ status }, req) => {
+
+        if (!req.isAuth) {
+            const error = new Error('Not authenticated')
+            error.status = 401;
+            throw error;
+        }
+
+        const user = await User.findById(req.userId);
+
+        if (!user) {
+            const error = new Error('No user found.')
+            error.status = 404;
+            throw error;
+        }
+        user.status = status
+        await user.save();
+
+        return { ...user._doc, _id: user._id.toString() }
+
     }
 };
+
