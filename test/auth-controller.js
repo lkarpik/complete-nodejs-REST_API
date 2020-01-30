@@ -5,11 +5,11 @@ const mongoose = require('mongoose');
 const User = require('../models/user');
 const AuthController = require('../controllers/auth');
 
-describe('Auth Controller', function() {
-  before(function(done) {
+describe('Auth Controller', function () {
+  before(function (done) {
     mongoose
       .connect(
-        'mongodb+srv://maximilian:fmFLrH6d0DjMxWcg@cluster0-ntrwp.mongodb.net/test-messages?retryWrites=true'
+        `mongodb+srv://lkarpik:At0fLuVKgPddwPlr@sandbox-0erkh.mongodb.net/nodejsCompleteAPI-testDB`
       )
       .then(result => {
         const user = new User({
@@ -26,11 +26,11 @@ describe('Auth Controller', function() {
       });
   });
 
-  beforeEach(function() {});
+  beforeEach(function () { });
 
-  afterEach(function() {});
+  afterEach(function () { });
 
-  it('should throw an error with code 500 if accessing the database fails', function(done) {
+  it('should throw an error with code 500 if accessing the database fails', function (done) {
     sinon.stub(User, 'findOne');
     User.findOne.throws();
 
@@ -41,7 +41,7 @@ describe('Auth Controller', function() {
       }
     };
 
-    AuthController.login(req, {}, () => {}).then(result => {
+    AuthController.login(req, {}, () => { }).then(result => {
       expect(result).to.be.an('error');
       expect(result).to.have.property('statusCode', 500);
       done();
@@ -50,27 +50,27 @@ describe('Auth Controller', function() {
     User.findOne.restore();
   });
 
-  it('should send a response with a valid user status for an existing user', function(done) {
+  it('should send a response with a valid user status for an existing user', function (done) {
     const req = { userId: '5c0f66b979af55031b34728a' };
     const res = {
       statusCode: 500,
       userStatus: null,
-      status: function(code) {
+      status: function (code) {
         this.statusCode = code;
         return this;
       },
-      json: function(data) {
+      json: function (data) {
         this.userStatus = data.status;
       }
     };
-    AuthController.getUserStatus(req, res, () => {}).then(() => {
+    AuthController.getUserStatus(req, res, () => { }).then(() => {
       expect(res.statusCode).to.be.equal(200);
       expect(res.userStatus).to.be.equal('I am new!');
       done();
     });
   });
 
-  after(function(done) {
+  after(function (done) {
     User.deleteMany({})
       .then(() => {
         return mongoose.disconnect();
